@@ -1,31 +1,31 @@
 # cdev_test
 
-Skrypt Bash do wykonywania prostych testów wydajności dysków.
+Bash script for running simple disk performance tests.
 
-## Wymagania
+## Requirements
 - `fio`
 - `jq`
 - `smartmontools`
 
-## Użycie
+## Usage
 ```bash
 chmod +x cdev_test
-./cdev_test [OPCJE]
+./cdev_test [OPTIONS]
 ```
 
-Przykład testu urządzenia NVMe:
+Example NVMe device test:
 ```bash
-./cdev_test --device=/dev/nvme0n1 --raport=raport.txt
+./cdev_test --device=/dev/nvme0n1 --report=report.txt
 ```
 
-Przykład testu plikowego:
+Example file-based test:
 ```bash
 ./cdev_test --work-file=./testfile
 ```
 
-Wyniki zapisywane są w pliku raportu (domyślnie `disks_test_raport.txt`).
+Results are saved to the report file (default `disks_test_report.txt`).
 
-## Licencja
-Kod udostępniany jest na licencji GNU General Public License w wersji 3.0.
-Szczegóły znajdują się w pliku `LICENSE`.
+## License
+The code is released under the GNU General Public License version 3.0.
+See the `LICENSE` file for details.
 

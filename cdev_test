@@ -1,35 +1,35 @@
 #!/bin/bash
 
 # =========================
-# Funkcja pomocy
+# Help function
 # =========================
 print_help() {
 cat <<EOF
-Użycie: $0 [OPCJE]
+  Usage: $0 [OPTIONS]
 
-Wymagane:
-  --device=/ścieżka/do/urządzenia      Test w trybie direct (np. --device=/dev/nvme0n1)
-      - lub -
-  --work-file=/ścieżka/do/pliku        Test w trybie plikowym (np. --work-file=./testfile)
+  Required:
+  --device=/path/to/device             Direct device test (e.g. --device=/dev/nvme0n1)
+      - or -
+  --work-file=/path/to/file            File based test (e.g. --work-file=./testfile)
 
-Opcjonalne:
-  --raport=/ścieżka/do/raportu         Ścieżka do pliku z raportem (domyślnie ./disks_test_raport.txt)
-  -h, --help                           Wyświetla tę pomoc
+  Optional:
+  --report=/path/to/report             Path to the report file (default ./disks_test_report.txt)
+  -h, --help                           Show this help
 
-Przykłady:
-  $0 --device=/dev/nvme0n1 --raport=raport.txt
+  Examples:
+  $0 --device=/dev/nvme0n1 --report=report.txt
   $0 --work-file=./testfile
 EOF
 exit 0
 }
 
 # =========================
-# Parsowanie argumentów
+# Argument parsing
 # =========================
 
 DEVICE=""
 WORK_FILE=""
-REPORT_FILE="disks_test_raport.txt"
+REPORT_FILE="disks_test_report.txt"
 
 for arg in "$@"; do
   case $arg in
@@ -39,30 +39,30 @@ for arg in "$@"; do
     --work-file=*)
       WORK_FILE="${arg#*=}"
       ;;
-    --raport=*)
+    --report=*)
       REPORT_FILE="${arg#*=}"
       ;;
     -h|--help)
       print_help
       ;;
     *)
-      echo "❌ Nieznany argument: $arg"
+      echo "❌ Unknown argument: $arg"
       print_help
       ;;
   esac
 done
 
 # =========================
-# Walidacja parametrów
+# Parameter validation
 # =========================
 
 if [[ -n "$DEVICE" && -n "$WORK_FILE" ]] || [[ -z "$DEVICE" && -z "$WORK_FILE" ]]; then
-  echo "❌ Musisz podać dokładnie jeden z argumentów: --device=... lub --work-file=..."
+  echo "❌ You must provide exactly one argument: --device=... or --work-file=..."
   print_help
 fi
 
 # =========================
-# Ustawienia i sprawdzenia
+# Configuration and checks
 # =========================
 
 USE_DIRECT=false
@@ -71,7 +71,7 @@ if [[ -n "$DEVICE" ]]; then
   USE_DIRECT=true
   FILENAME="$DEVICE"
   if mount | grep -q "$DEVICE"; then
-    echo "❌ Urządzenie $DEVICE jest zamontowane. Odmontuj je przed testem z --device."
+    echo "❌ Device $DEVICE is mounted. Unmount it before testing with --device."
     exit 1
   fi
 else
@@ -79,22 +79,22 @@ else
 fi
 
 # =========================
-# Informacje systemowe
+# System information
 # =========================
 
 DATE=$(date '+%Y-%m-%d %H:%M:%S')
 CPU=$(lscpu | grep "Model name" | sed 's/Model name:\s*//')
 RAM=$(free -h | awk '/^Mem:/ {print $2}')
-BOARD=$(cat /sys/class/dmi/id/board_name 2>/dev/null || echo "Nieznana płyta")
-DISK_INFO=$(lsblk -d -o NAME,VENDOR,MODEL,SIZE,TRAN | grep "$(basename $FILENAME)" || echo "Brak danych z lsblk")
+BOARD=$(cat /sys/class/dmi/id/board_name 2>/dev/null || echo "Unknown board")
+DISK_INFO=$(lsblk -d -o NAME,VENDOR,MODEL,SIZE,TRAN | grep "$(basename $FILENAME)" || echo "No data from lsblk")
 SMART_INFO=$(smartctl -i "$FILENAME" 2>/dev/null)
 
 echo "======================" | tee -a "$REPORT_FILE"
-echo "🕒 Data testu: $DATE" | tee -a "$REPORT_FILE"
+echo "🕒 Test date: $DATE" | tee -a "$REPORT_FILE"
 echo "🖥️ CPU: $CPU" | tee -a "$REPORT_FILE"
 echo "💾 RAM: $RAM" | tee -a "$REPORT_FILE"
-echo "🔧 Płyta główna: $BOARD" | tee -a "$REPORT_FILE"
-echo "📀 Dysk testowany: $DISK_INFO" | tee -a "$REPORT_FILE"
+echo "🔧 Motherboard: $BOARD" | tee -a "$REPORT_FILE"
+echo "📀 Tested disk: $DISK_INFO" | tee -a "$REPORT_FILE"
 echo "$SMART_INFO" | grep -E 'Model|Serial|Capacity|Interface' | tee -a "$REPORT_FILE"
 echo "======================" | tee -a "$REPORT_FILE"
 echo "" | tee -a "$REPORT_FILE"
@@ -103,7 +103,7 @@ FIO_FLAGS="--time_based --group_reporting --runtime=30 --size=2G --filename=$FIL
 [[ $USE_DIRECT == true ]] && FIO_FLAGS="$FIO_FLAGS --direct=1"
 
 # =========================
-# Funkcja testowa
+# Test function
 # =========================
 run_test() {
   NAME=$1
@@ -115,10 +115,10 @@ run_test() {
 
   fio --name="$NAME" $FIO_FLAGS $PARAMS --output-format=json --output="$TMP_JSON"
 
-  # Parsowanie najważniejszego wyniku
+  # Parsing the most important result
   RESULT=""
   if [[ "$NAME" == *"seq-read"* || "$NAME" == *"seq-write"* || "$NAME" == *"long-write"* ]]; then
-    # Przepustowość (MiB/s)
+    # Throughput (MiB/s)
     BW=$(jq 'if .jobs[0].write.bw_bytes == 0 then .jobs[0].read.bw_bytes else .jobs[0].write.bw_bytes end' "$TMP_JSON")
     MB=$(awk "BEGIN { printf \"%.2f\", $BW / 1048576 }")
     UNIT="MiB/s"
@@ -129,29 +129,29 @@ run_test() {
     UNIT="IOPS"
     RESULT="$IOPS $UNIT"
   else
-    RESULT="Nieznany typ testu"
+    RESULT="Unknown test type"
   fi
 
-  echo "✅ Wynik: $DESC → $RESULT" | tee -a "$REPORT_FILE"
+  echo "✅ Result: $DESC → $RESULT" | tee -a "$REPORT_FILE"
   echo "" | tee -a "$REPORT_FILE"
 
   rm "$TMP_JSON"
 }
 
 # =========================
-# Wykonywanie testów
+# Running tests
 # =========================
 
-run_test "seq-read" "Sekwencyjny odczyt 1M Q1T1" "--rw=read --bs=1M --iodepth=1 --numjobs=1"
-run_test "seq-write" "Sekwencyjny zapis 1M Q1T1" "--rw=write --bs=1M --iodepth=1 --numjobs=1"
-run_test "randread-q1t1" "Losowy odczyt 4K Q1T1" "--rw=randread --bs=4k --iodepth=1 --numjobs=1"
-run_test "randwrite-q1t1" "Losowy zapis 4K Q1T1" "--rw=randwrite --bs=4k --iodepth=1 --numjobs=1"
-run_test "randread-q32t16" "Losowy odczyt 4K Q32T16" "--rw=randread --bs=4k --iodepth=32 --numjobs=16"
-run_test "randwrite-q32t16" "Losowy zapis 4K Q32T16" "--rw=randwrite --bs=4k --iodepth=32 --numjobs=16"
-run_test "long-write" "Test throttlingu - ciągły zapis 60s" "--rw=write --bs=1M --iodepth=1 --numjobs=1 --runtime=60"
+run_test "seq-read" "Sequential read 1M Q1T1" "--rw=read --bs=1M --iodepth=1 --numjobs=1"
+run_test "seq-write" "Sequential write 1M Q1T1" "--rw=write --bs=1M --iodepth=1 --numjobs=1"
+run_test "randread-q1t1" "Random read 4K Q1T1" "--rw=randread --bs=4k --iodepth=1 --numjobs=1"
+run_test "randwrite-q1t1" "Random write 4K Q1T1" "--rw=randwrite --bs=4k --iodepth=1 --numjobs=1"
+run_test "randread-q32t16" "Random read 4K Q32T16" "--rw=randread --bs=4k --iodepth=32 --numjobs=16"
+run_test "randwrite-q32t16" "Random write 4K Q32T16" "--rw=randwrite --bs=4k --iodepth=32 --numjobs=16"
+run_test "long-write" "Throttling test - continuous write 60s" "--rw=write --bs=1M --iodepth=1 --numjobs=1 --runtime=60"
 
 # =========================
-# Sprzątanie
+# Cleanup
 # =========================
 
 [[ $USE_DIRECT == false && -f "$WORK_FILE" ]] && rm "$WORK_FILE"
