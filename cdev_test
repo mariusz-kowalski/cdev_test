@@ -128,6 +128,12 @@ run_test() {
     IOPS=$(jq 'if .jobs[0].write.iops == 0 then .jobs[0].read.iops else .jobs[0].write.iops end' "$TMP_JSON")
     UNIT="IOPS"
     RESULT="$IOPS $UNIT"
+  elif [[ "$NAME" == *"latency"* ]]; then
+    # Average access time (µs)
+    LAT=$(jq 'if .jobs[0].write.clat_ns.mean == 0 then .jobs[0].read.clat_ns.mean else .jobs[0].write.clat_ns.mean end' "$TMP_JSON")
+    LAT_US=$(awk "BEGIN { printf \"%.2f\", $LAT / 1000 }")
+    UNIT="us"
+    RESULT="$LAT_US $UNIT"
   else
     RESULT="Unknown test type"
   fi
@@ -148,6 +154,7 @@ run_test "randread-q1t1" "Random read 4K Q1T1" "--rw=randread --bs=4k --iodepth=
 run_test "randwrite-q1t1" "Random write 4K Q1T1" "--rw=randwrite --bs=4k --iodepth=1 --numjobs=1"
 run_test "randread-q32t16" "Random read 4K Q32T16" "--rw=randread --bs=4k --iodepth=32 --numjobs=16"
 run_test "randwrite-q32t16" "Random write 4K Q32T16" "--rw=randwrite --bs=4k --iodepth=32 --numjobs=16"
+run_test "latency-q1t1" "Random read latency 4K Q1T1" "--rw=randread --bs=4k --iodepth=1 --numjobs=1"
 run_test "long-write" "Throttling test - continuous write 60s" "--rw=write --bs=1M --iodepth=1 --numjobs=1 --runtime=60"
 
 # =========================
